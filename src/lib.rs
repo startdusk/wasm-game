@@ -1,8 +1,7 @@
 use std::rc::Rc;
 use std::sync::Mutex;
 
-use futures::channel::oneshot;
-use rand::Rng;
+// use futures::channel::oneshot;
 use serde::Deserialize;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
@@ -71,40 +70,50 @@ pub fn main_js() -> Result<(), JsValue> {
                 error_tx.send(Err(err)).unwrap();
             }
         });
+
         image.set_onload(Some(callback.as_ref().unchecked_ref()));
         image.set_onerror(Some(error_callback.as_ref().unchecked_ref()));
-        image.set_src("Idle (1).png");
+        image.set_src("rhb.png");
         success_rx.await.unwrap().unwrap();
 
         context
             .draw_image_with_html_image_element(&image, 0.0, 0.0)
             .unwrap();
+
         let json = fetch_json("rhb.json")
             .await
             .expect("Could not fetch rhb.json");
         let sheet: Sheet = serde_wasm_bindgen::from_value(json)
             .expect("Could not convert rhb.json into a Sheet structure");
-        let sprite = sheet.frames.get("Run (1).png").expect("Cell not fouund");
-        context
-            .draw_image_with_html_image_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(
-                &image,
-                sprite.frame.x.into(),
-                sprite.frame.y.into(),
-                sprite.frame.w.into(),
-                sprite.frame.h.into(),
-                300.0,
-                300.0,
-                sprite.frame.w.into(),
-                sprite.frame.h.into(),
+        let mut frame = -1;
+        let internal_callback = Closure::wrap(Box::new(move || {
+            frame = (frame + 1) % 8;
+            let frame_name = format!("Run ({}).png", frame + 1);
+            context.clear_rect(0.0, 0.0, 600.0, 600.0);
+
+            let sprite = sheet.frames.get(&frame_name).expect("Cell not fouund");
+            context
+                .draw_image_with_html_image_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(
+                    &image,
+                    sprite.frame.x.into(),
+                    sprite.frame.y.into(),
+                    sprite.frame.w.into(),
+                    sprite.frame.h.into(),
+                    300.0,
+                    300.0,
+                    sprite.frame.w.into(),
+                    sprite.frame.h.into(),
+                )
+                .unwrap();
+        }) as Box<dyn FnMut()>);
+        window
+            .set_interval_with_callback_and_timeout_and_arguments_0(
+                internal_callback.as_ref().unchecked_ref(),
+                50,
             )
             .unwrap();
-
-        sierpinski(
-            &context,
-            [(300.0, 0.0), (0.0, 600.0), (600.0, 600.0)],
-            (0, 255, 0),
-            5,
-        );
+        // Rust 不会销毁这个闭包(js就不会报错)
+        internal_callback.forget();
     });
     Ok(())
 }
@@ -114,71 +123,4 @@ async fn fetch_json(json_path: &str) -> Result<JsValue, JsValue> {
     let resp_value = wasm_bindgen_futures::JsFuture::from(window.fetch_with_str(json_path)).await?;
     let resp: web_sys::Response = resp_value.dyn_into()?;
     wasm_bindgen_futures::JsFuture::from(resp.json()?).await
-}
-
-fn draw_triangle(
-    context: &web_sys::CanvasRenderingContext2d,
-    points: [(f64, f64); 3],
-    color: (u8, u8, u8),
-) {
-    let [top, left, right] = points;
-    context.move_to(top.0, top.1);
-    context.begin_path();
-    context.line_to(left.0, left.1);
-    context.line_to(right.0, right.1);
-    context.line_to(top.0, top.1);
-    context.close_path();
-    let color_str = format!("rgb({}, {}, {})", color.0, color.1, color.2);
-    context.set_fill_style(&wasm_bindgen::JsValue::from_str(&color_str));
-
-    context.stroke();
-    context.fill();
-}
-
-fn sierpinski(
-    context: &web_sys::CanvasRenderingContext2d,
-    points: [(f64, f64); 3],
-    color: (u8, u8, u8),
-    depth: u8,
-) {
-    draw_triangle(&context, points, color);
-    let depth = depth - 1;
-    if depth > 0 {
-        let [top, left, right] = points;
-        let left_middle = mid_point(top, left);
-        let right_middle = mid_point(top, right);
-        let bottom_middle = mid_point(left, right);
-
-        let mut rng = rand::thread_rng();
-        let next_color = (
-            rng.gen_range(0..255),
-            rng.gen_range(0..255),
-            rng.gen_range(0..255),
-        );
-
-        sierpinski(
-            &context,
-            [top, left_middle, right_middle],
-            next_color,
-            depth,
-        );
-
-        sierpinski(
-            &context,
-            [left_middle, left, bottom_middle],
-            next_color,
-            depth,
-        );
-
-        sierpinski(
-            &context,
-            [right_middle, bottom_middle, right],
-            next_color,
-            depth,
-        );
-    }
-}
-
-fn mid_point(point_1: (f64, f64), point_2: (f64, f64)) -> (f64, f64) {
-    ((point_1.0 + point_2.0) / 2.0, (point_1.1 + point_2.1) / 2.0)
 }
