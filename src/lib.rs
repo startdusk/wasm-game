@@ -1,5 +1,6 @@
-use std::rc::Rc;
-use std::sync::Mutex;
+#[macro_use]
+mod browser;
+mod engine;
 
 // use futures::channel::oneshot;
 use serde::Deserialize;
@@ -41,50 +42,18 @@ pub fn main_js() -> Result<(), JsValue> {
     #[cfg(debug_assertions)]
     console_error_panic_hook::set_once();
 
-    let window = web_sys::window().unwrap();
-    let document = window.document().unwrap();
-    let canvas = document
-        .get_element_by_id("canvas")
-        .unwrap()
-        .dyn_into::<web_sys::HtmlCanvasElement>()
-        .unwrap();
-
-    let context = canvas
-        .get_context("2d")
-        .unwrap()
-        .unwrap()
-        .dyn_into::<web_sys::CanvasRenderingContext2d>()
-        .unwrap();
-    wasm_bindgen_futures::spawn_local(async move {
-        let (success_tx, success_rx) = futures::channel::oneshot::channel::<Result<(), JsValue>>();
-        let success_tx = Rc::new(Mutex::new(Some(success_tx)));
-        let error_tx = Rc::clone(&success_tx);
-        let image = web_sys::HtmlImageElement::new().unwrap();
-        let callback = Closure::once(move || {
-            if let Some(success_tx) = success_tx.lock().ok().and_then(|mut opt| opt.take()) {
-                success_tx.send(Ok(())).unwrap();
-            }
-        });
-        let error_callback = Closure::once(move |err| {
-            if let Some(error_tx) = error_tx.lock().ok().and_then(|mut opt| opt.take()) {
-                error_tx.send(Err(err)).unwrap();
-            }
-        });
-
-        image.set_onload(Some(callback.as_ref().unchecked_ref()));
-        image.set_onerror(Some(error_callback.as_ref().unchecked_ref()));
-        image.set_src("rhb.png");
-        success_rx.await.unwrap().unwrap();
-
-        context
-            .draw_image_with_html_image_element(&image, 0.0, 0.0)
-            .unwrap();
-
-        let json = fetch_json("rhb.json")
+    let context = browser::context().expect("No context found");
+    browser::spawn_local(async move {
+        let json = browser::fetch_json("rhb.json")
             .await
             .expect("Could not fetch rhb.json");
         let sheet: Sheet = serde_wasm_bindgen::from_value(json)
             .expect("Could not convert rhb.json into a Sheet structure");
+
+        let image = engine::load_image("rhb.png")
+            .await
+            .expect("Could not load rhb.png");
+
         let mut frame = -1;
         let internal_callback = Closure::wrap(Box::new(move || {
             frame = (frame + 1) % 8;
@@ -106,7 +75,8 @@ pub fn main_js() -> Result<(), JsValue> {
                 )
                 .unwrap();
         }) as Box<dyn FnMut()>);
-        window
+        browser::window()
+            .unwrap()
             .set_interval_with_callback_and_timeout_and_arguments_0(
                 internal_callback.as_ref().unchecked_ref(),
                 50,
