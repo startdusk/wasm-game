@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use futures::Future;
 use wasm_bindgen::{
     closure::{WasmClosure, WasmClosureFnOnce},
@@ -14,17 +14,17 @@ macro_rules! log {
     };
 }
 
-pub fn window() -> anyhow::Result<Window> {
+pub fn window() -> Result<Window> {
     web_sys::window().ok_or_else(|| anyhow!("No window found"))
 }
 
-pub fn document() -> anyhow::Result<Document> {
+pub fn document() -> Result<Document> {
     window()?
         .document()
         .ok_or_else(|| anyhow!("No document found"))
 }
 
-pub fn canvas() -> anyhow::Result<HtmlCanvasElement> {
+pub fn canvas() -> Result<HtmlCanvasElement> {
     document()?
         .get_element_by_id("canvas")
         .ok_or_else(|| anyhow!("No Canvas Element found with ID 'canvas'"))?
@@ -32,7 +32,7 @@ pub fn canvas() -> anyhow::Result<HtmlCanvasElement> {
         .map_err(|e| anyhow!("Error converting {:#?} to HtmlCanvasElement", e))
 }
 
-pub fn context() -> anyhow::Result<CanvasRenderingContext2d> {
+pub fn context() -> Result<CanvasRenderingContext2d> {
     canvas()?
         .get_context("2d")
         .map_err(|js_value| anyhow!("Error getting 2d context {:#?}", js_value))?
@@ -48,13 +48,13 @@ where
     wasm_bindgen_futures::spawn_local(future);
 }
 
-pub async fn fetch_with_str(resource: &str) -> anyhow::Result<JsValue> {
+pub async fn fetch_with_str(resource: &str) -> Result<JsValue> {
     JsFuture::from(window()?.fetch_with_str(resource))
         .await
         .map_err(|err| anyhow!("Error fetching {:#?}", err))
 }
 
-pub async fn fetch_json(json_path: &str) -> anyhow::Result<JsValue> {
+pub async fn fetch_json(json_path: &str) -> Result<JsValue> {
     let resp_value = fetch_with_str(json_path).await?;
     let resp: web_sys::Response = resp_value
         .dyn_into()
@@ -68,7 +68,7 @@ pub async fn fetch_json(json_path: &str) -> anyhow::Result<JsValue> {
     .map_err(|err| anyhow!("Error fetching JSON {:#?}", err))
 }
 
-pub fn new_image() -> anyhow::Result<HtmlImageElement> {
+pub fn new_image() -> Result<HtmlImageElement> {
     web_sys::HtmlImageElement::new()
         .map_err(|err| anyhow!("Could not create HtmlImageElement: {:#?}", err))
 }
@@ -82,7 +82,7 @@ where
 
 pub type LoopClosure = Closure<dyn FnMut(f64)>;
 
-pub fn request_animation_frame(callback: &LoopClosure) -> anyhow::Result<i32> {
+pub fn request_animation_frame(callback: &LoopClosure) -> Result<i32> {
     window()?
         .request_animation_frame(callback.as_ref().unchecked_ref())
         .map_err(|err| anyhow!("Cannot request animation frame: {:#?}", err))
@@ -96,4 +96,11 @@ pub fn closure_wrap<T: WasmClosure + ?Sized>(data: Box<T>) -> Closure<T> {
     // The wrap function on Closure creates a Closure that can be called multiple times, it needs to be wrapped
     // in a Box and stored on the heap
     Closure::wrap(data)
+}
+
+pub fn now() -> Result<f64> {
+    Ok(window()?
+        .performance()
+        .ok_or_else(|| anyhow!("Performance object not found"))?
+        .now())
 }
