@@ -1,7 +1,7 @@
 #[macro_use]
-mod browser;
-mod engine;
-mod game;
+pub mod browser;
+pub mod engine;
+pub mod game;
 
 use anyhow::Result;
 use engine::GameLoop;

@@ -12,12 +12,12 @@ use web_sys::{CanvasRenderingContext2d, HtmlImageElement};
 
 use crate::browser::{self, LoopClosure};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Sheet {
     pub frames: HashMap<String, Cell>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Copy)]
 pub struct SheetRect {
     pub x: i16,
     pub y: i16,
@@ -25,7 +25,7 @@ pub struct SheetRect {
     pub h: i16,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Copy)]
 pub struct Rect {
     pub x: f32,
     pub y: f32,
@@ -33,7 +33,7 @@ pub struct Rect {
     pub height: f32,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Copy)]
 pub struct Cell {
     pub frame: SheetRect,
 }
@@ -50,6 +50,12 @@ const FRAME_SIZE: f32 = 1.0 / 60.0 * 1000.0;
 pub struct GameLoop {
     last_frame: f64,
     accumulated_delta: f32,
+}
+
+#[derive(Clone, Copy)]
+pub struct Point {
+    pub x: i16,
+    pub y: i16,
 }
 
 type SharedLoopClourse = Rc<RefCell<Option<LoopClosure>>>;
