@@ -27,5 +27,5 @@ fn async_test() -> impl Future<Item = (), Error = JsValue> {
     // The unit test will wait for the Future to resolve.
     JsFuture::from(promise).map(|x| {
         assert_eq!(x, 42);
-    })
+    });
 }
