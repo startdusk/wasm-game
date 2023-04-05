@@ -27,15 +27,27 @@ pub struct SheetRect {
 
 #[derive(Deserialize, Clone, Copy)]
 pub struct Rect {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
+    pub x: f32,      // 水平坐标 x 轴的点
+    pub y: f32,      // 垂直坐标 y 轴的点
+    pub width: f32,  // 物体宽度
+    pub height: f32, // 物体长度
+}
+
+impl Rect {
+    /// intersects 检测坐标上的两个物体有没有交互(游戏里叫 collision 即 碰撞 )
+    pub fn intersects(&self, rect: &Rect) -> bool {
+        (self.x < (rect.x + rect.width))
+            && ((self.x + self.width) > rect.x)
+            && (self.y < (rect.y + rect.height))
+            && ((self.y + self.height) > rect.y)
+    }
 }
 
 #[derive(Deserialize, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
 pub struct Cell {
     pub frame: SheetRect,
+    pub sprite_source_size: SheetRect,
 }
 
 #[async_trait(?Send)]
@@ -163,11 +175,26 @@ pub async fn load_image(source: &str) -> Result<HtmlImageElement> {
 pub struct Image {
     element: HtmlImageElement,
     position: Point,
+    bounding_box: Rect,
 }
 
 impl Image {
     pub fn new(element: HtmlImageElement, position: Point) -> Self {
-        Self { element, position }
+        let bounding_box = Rect {
+            x: position.x.into(),
+            y: position.y.into(),
+            width: element.width() as f32,
+            height: element.height() as f32,
+        };
+        Self {
+            element,
+            position,
+            bounding_box,
+        }
+    }
+
+    pub fn bounding_box(&self) -> &Rect {
+        &self.bounding_box
     }
 
     pub fn draw(&self, renderer: &Renderer) {
