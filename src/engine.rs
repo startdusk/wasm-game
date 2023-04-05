@@ -70,7 +70,7 @@ impl GameLoop {
             accumulated_delta: 0.0,
         };
         let renderer = Renderer {
-            context: browser::context()?,
+            ctx: browser::context()?,
         };
 
         let f: SharedLoopClourse = Rc::new(RefCell::new(None));
@@ -100,12 +100,12 @@ impl GameLoop {
 }
 
 pub struct Renderer {
-    context: CanvasRenderingContext2d,
+    ctx: CanvasRenderingContext2d,
 }
 
 impl Renderer {
     pub fn clear(&self, rect: &Rect) {
-        self.context.clear_rect(
+        self.ctx.clear_rect(
             rect.x.into(),
             rect.y.into(),
             rect.width.into(),
@@ -114,7 +114,7 @@ impl Renderer {
     }
 
     pub fn draw_image(&self, image: &HtmlImageElement, frame: &Rect, destination: &Rect) {
-        self.context
+        self.ctx
             .draw_image_with_html_image_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(
                 &image,
                 frame.x.into(),
@@ -126,6 +126,12 @@ impl Renderer {
                 destination.width.into(),
                 destination.height.into(),
             )
+            .expect("Drawing is throwing exceptions! Unrecoverable error.");
+    }
+
+    pub fn draw_entire_image(&self, image: &HtmlImageElement, position: &Point) {
+        self.ctx
+            .draw_image_with_html_image_element(image, position.x.into(), position.y.into())
             .expect("Drawing is throwing exceptions! Unrecoverable error.");
     }
 }
@@ -152,6 +158,21 @@ pub async fn load_image(source: &str) -> Result<HtmlImageElement> {
     image.set_src(source);
     complete_rx.await??;
     Ok(image)
+}
+
+pub struct Image {
+    element: HtmlImageElement,
+    position: Point,
+}
+
+impl Image {
+    pub fn new(element: HtmlImageElement, position: Point) -> Self {
+        Self { element, position }
+    }
+
+    pub fn draw(&self, renderer: &Renderer) {
+        renderer.draw_entire_image(&self.element, &self.position);
+    }
 }
 
 pub enum KeyPress {
