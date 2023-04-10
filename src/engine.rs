@@ -33,7 +33,8 @@ pub struct Rect {
 }
 
 impl Rect {
-    pub fn new(position: Point, width: i16, height: i16) -> Self {
+    // 加 const 表示该函数可以在 const 常量中被初始化 如 cosnt rect = Rect::new(...);
+    pub const fn new(position: Point, width: i16, height: i16) -> Self {
         Rect {
             position,
             width,
@@ -41,7 +42,7 @@ impl Rect {
         }
     }
 
-    pub fn new_from_x_y(x: i16, y: i16, width: i16, height: i16) -> Self {
+    pub const fn new_from_x_y(x: i16, y: i16, width: i16, height: i16) -> Self {
         Rect::new(Point { x, y }, width, height)
     }
 
