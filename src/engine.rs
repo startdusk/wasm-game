@@ -25,21 +25,52 @@ pub struct SheetRect {
     pub h: i16,
 }
 
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Default, Deserialize, Clone, Copy)]
 pub struct Rect {
-    pub x: f32,      // 水平坐标 x 轴的点
-    pub y: f32,      // 垂直坐标 y 轴的点
-    pub width: f32,  // 物体宽度
-    pub height: f32, // 物体长度
+    pub position: Point, // 水平坐标 x 轴的点, 垂直坐标 y 轴的点
+    pub width: i16,      // x = 物体宽度
+    pub height: i16,     // y = 物体的高度
 }
 
 impl Rect {
+    pub fn new(position: Point, width: i16, height: i16) -> Self {
+        Rect {
+            position,
+            width,
+            height,
+        }
+    }
+
+    pub fn new_from_x_y(x: i16, y: i16, width: i16, height: i16) -> Self {
+        Rect::new(Point { x, y }, width, height)
+    }
+
     /// intersects 检测坐标上的两个物体有没有交互(游戏里叫 collision 即 碰撞 )
     pub fn intersects(&self, rect: &Rect) -> bool {
-        (self.x < (rect.x + rect.width))
-            && ((self.x + self.width) > rect.x)
-            && (self.y < (rect.y + rect.height))
-            && ((self.y + self.height) > rect.y)
+        (self.x() < rect.right())
+            && (self.right() > rect.x())
+            && (self.y() < rect.bottom())
+            && (self.bottom() > rect.y())
+    }
+
+    pub fn right(&self) -> i16 {
+        self.position.x + self.width
+    }
+
+    pub fn bottom(&self) -> i16 {
+        self.position.y + self.height
+    }
+
+    pub fn x(&self) -> i16 {
+        self.position.x
+    }
+
+    pub fn set_x(&mut self, x: i16) {
+        self.position.x = x
+    }
+
+    pub fn y(&self) -> i16 {
+        self.position.y
     }
 }
 
@@ -48,6 +79,25 @@ impl Rect {
 pub struct Cell {
     pub frame: SheetRect,
     pub sprite_source_size: SheetRect,
+}
+
+pub struct SpriteSheet {
+    pub sheet: Sheet,
+    pub image: HtmlImageElement,
+}
+
+impl SpriteSheet {
+    pub fn new(sheet: Sheet, image: HtmlImageElement) -> Self {
+        SpriteSheet { sheet, image }
+    }
+
+    pub fn cell(&self, name: &str) -> Option<&Cell> {
+        self.sheet.frames.get(name)
+    }
+
+    pub fn draw(&self, renderer: &Renderer, source: &Rect, destination: &Rect) {
+        renderer.draw_image(&self.image, source, destination);
+    }
 }
 
 #[async_trait(?Send)]
@@ -64,7 +114,7 @@ pub struct GameLoop {
     accumulated_delta: f32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Default, Deserialize, Clone, Copy)]
 pub struct Point {
     pub x: i16,
     pub y: i16,
@@ -118,8 +168,8 @@ pub struct Renderer {
 impl Renderer {
     pub fn clear(&self, rect: &Rect) {
         self.ctx.clear_rect(
-            rect.x.into(),
-            rect.y.into(),
+            rect.x().into(),
+            rect.y().into(),
             rect.width.into(),
             rect.height.into(),
         )
@@ -129,12 +179,12 @@ impl Renderer {
         self.ctx
             .draw_image_with_html_image_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(
                 &image,
-                frame.x.into(),
-                frame.y.into(),
+                frame.x().into(),
+                frame.y().into(),
                 frame.width.into(),
                 frame.height.into(),
-                destination.x.into(),
-                destination.y.into(),
+                destination.x().into(),
+                destination.y().into(),
                 destination.width.into(),
                 destination.height.into(),
             )
@@ -174,21 +224,14 @@ pub async fn load_image(source: &str) -> Result<HtmlImageElement> {
 
 pub struct Image {
     element: HtmlImageElement,
-    position: Point,
     bounding_box: Rect,
 }
 
 impl Image {
     pub fn new(element: HtmlImageElement, position: Point) -> Self {
-        let bounding_box = Rect {
-            x: position.x.into(),
-            y: position.y.into(),
-            width: element.width() as f32,
-            height: element.height() as f32,
-        };
+        let bounding_box = Rect::new(position, element.width() as i16, element.height() as i16);
         Self {
             element,
-            position,
             bounding_box,
         }
     }
@@ -198,7 +241,19 @@ impl Image {
     }
 
     pub fn draw(&self, renderer: &Renderer) {
-        renderer.draw_entire_image(&self.element, &self.position);
+        renderer.draw_entire_image(&self.element, &self.bounding_box.position);
+    }
+
+    pub fn move_horizontally(&mut self, distance: i16) {
+        self.set_x(self.bounding_box.x() + distance);
+    }
+
+    pub fn set_x(&mut self, x: i16) {
+        self.bounding_box.set_x(x);
+    }
+
+    pub fn right(&self) -> i16 {
+        self.bounding_box.right()
     }
 }
 
