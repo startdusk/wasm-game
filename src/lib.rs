@@ -3,6 +3,7 @@ pub mod browser;
 pub mod engine;
 pub mod game;
 pub mod segment;
+pub mod sound;
 
 use anyhow::Result;
 use engine::GameLoop;

@@ -8,9 +8,12 @@ use futures::channel::{
 };
 use serde::Deserialize;
 use wasm_bindgen::{prelude::Closure, JsCast, JsValue};
-use web_sys::{CanvasRenderingContext2d, HtmlImageElement};
+use web_sys::{AudioBuffer, AudioContext, CanvasRenderingContext2d, HtmlImageElement};
 
-use crate::browser::{self, LoopClosure};
+use crate::{
+    browser::{self, LoopClosure},
+    sound,
+};
 
 #[derive(Deserialize, Clone)]
 pub struct Sheet {
@@ -108,7 +111,7 @@ pub trait Game {
     fn draw(&self, renderer: &Renderer);
 }
 
-const FRAME_SIZE: f32 = 1.0 / 60.0 * 1000.0;
+const FRAME_SIZE: f32 = 1.0 / 60.0 * 10000.0; // 60 帧
 
 pub struct GameLoop {
     last_frame: f64,
@@ -324,4 +327,40 @@ impl KeyState {
     pub fn set_released(&mut self, code: &str) {
         self.pressed_keys.remove(code.into());
     }
+}
+
+// =============================================================================
+// AUdio
+#[derive(Clone)]
+pub struct Audio {
+    ctx: AudioContext,
+}
+
+impl Audio {
+    pub fn new() -> Result<Self> {
+        Ok(Audio {
+            ctx: sound::create_audio_context()?,
+        })
+    }
+
+    pub async fn load_sound(&self, filename: &str) -> Result<Sound> {
+        let array_buffer = browser::fetch_array_buffer(filename).await?;
+        let audio_buffer = sound::decode_audio_data(&self.ctx, &array_buffer).await?;
+        Ok(Sound {
+            buffer: audio_buffer,
+        })
+    }
+
+    pub fn play_sound(&self, sound: &Sound) -> Result<()> {
+        sound::play_sound(&self.ctx, &sound.buffer, sound::LOOPPING::NO)
+    }
+
+    pub fn play_looping_sound(&self, sound: &Sound) -> Result<()> {
+        sound::play_sound(&self.ctx, &sound.buffer, sound::LOOPPING::YES)
+    }
+}
+
+#[derive(Clone)]
+pub struct Sound {
+    buffer: AudioBuffer,
 }

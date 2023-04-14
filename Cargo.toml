@@ -37,6 +37,7 @@ serde = { version = "1.0.159", features = ["derive"] }
 serde-wasm-bindgen = "0.5.0"
 anyhow = "1.0.70"
 async-trait = "0.1.68"
+js-sys = "0.3.59"
 
 # The `web-sys` crate allows you to interact with the various browser APIs,
 # like the DOM.
@@ -52,6 +53,10 @@ features = [
     "CanvasRenderingContext2d", 
     "HtmlImageElement",
     "Response",
+    "AudioContext",
+    "AudioBuffer",
+    "AudioBufferSourceNode",
+    "AudioDestinationNode",
     "console"
 ]
 
@@ -66,5 +71,4 @@ console_error_panic_hook = "0.1.7"
 [dev-dependencies]
 wasm-bindgen-test = "0.3.32"
 futures = "0.3.24"
-js-sys = "0.3.59"
 wasm-bindgen-futures = "0.4.32"

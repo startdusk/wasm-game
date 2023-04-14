@@ -7,7 +7,9 @@ use web_sys::HtmlImageElement;
 
 use crate::{
     browser,
-    engine::{self, Cell, Game, Image, KeyState, Point, Rect, Renderer, Sheet, SpriteSheet},
+    engine::{
+        self, Audio, Cell, Game, Image, KeyState, Point, Rect, Renderer, Sheet, Sound, SpriteSheet,
+    },
     segment::{platform_and_stone, stone_and_platform},
 };
 
@@ -41,7 +43,11 @@ impl Game for WalkTheDog {
                     .expect("Could not convert rhb.json into a Sheet structure");
 
                 let image = engine::load_image("rhb.png").await?;
-                let rhb = RedHatBoy::new(sheet, image);
+                let audio = Audio::new()?;
+                let sound = audio.load_sound("SFX_Jump_23.mp3").await?;
+                let backgound_music = audio.load_sound("background_song.mp3").await?;
+                audio.play_looping_sound(&backgound_music)?;
+                let rhb = RedHatBoy::new(sheet, image, audio, sound);
                 let stone = engine::load_image("Stone.png").await?;
                 let platform_sheet = browser::fetch_json("tiles.json").await?;
                 let platform_sheet: Sheet = serde_wasm_bindgen::from_value(platform_sheet)
@@ -335,9 +341,9 @@ pub struct RedHatBoy {
 }
 
 impl RedHatBoy {
-    fn new(sheet: Sheet, image: HtmlImageElement) -> Self {
+    fn new(sheet: Sheet, image: HtmlImageElement, audio: Audio, sound: Sound) -> Self {
         Self {
-            state_machine: RedHatBoyStateMachine::Idle(RedHatBoyState::new()),
+            state_machine: RedHatBoyStateMachine::Idle(RedHatBoyState::new(audio, sound)),
             sprite_sheet: sheet,
             image,
         }
@@ -403,23 +409,23 @@ impl RedHatBoy {
     }
 
     fn update(&mut self) {
-        self.state_machine = self.state_machine.update();
+        self.state_machine = self.state_machine.clone().update();
     }
 
     fn run_right(&mut self) {
-        self.state_machine = self.state_machine.transition(Event::Run);
+        self.state_machine = self.state_machine.clone().transition(Event::Run);
     }
 
     fn slide(&mut self) {
-        self.state_machine = self.state_machine.transition(Event::Slide)
+        self.state_machine = self.state_machine.clone().transition(Event::Slide)
     }
 
     fn jump(&mut self) {
-        self.state_machine = self.state_machine.transition(Event::Jump)
+        self.state_machine = self.state_machine.clone().transition(Event::Jump)
     }
 
     fn knock_out(&mut self) {
-        self.state_machine = self.state_machine.transition(Event::KnockOut);
+        self.state_machine = self.state_machine.clone().transition(Event::KnockOut);
     }
 
     fn pos_y(&self) -> i16 {
@@ -431,13 +437,13 @@ impl RedHatBoy {
     }
 
     fn land_on(&mut self, position: i16) {
-        self.state_machine = self.state_machine.transition(Event::Land(position));
+        self.state_machine = self.state_machine.clone().transition(Event::Land(position));
     }
 }
 
 // =============================================================================
 // RedHatBoyStateMachine
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum RedHatBoyStateMachine {
     Idle(RedHatBoyState<Idle>),
     Running(RedHatBoyState<Running>),
@@ -458,7 +464,7 @@ pub enum Event {
 
 impl RedHatBoyStateMachine {
     fn transition(self, event: Event) -> Self {
-        match (self, event) {
+        match (self.clone(), event) {
             // =================================================================
             // to Run
             (RedHatBoyStateMachine::Idle(state), Event::Run) => state.run().into(),
@@ -604,7 +610,7 @@ fn right_most(obstacle_list: &Vec<Box<dyn Obstacle>>) -> i16 {
 mod red_hat_boy_states {
     use std::marker;
 
-    use crate::engine::Point;
+    use crate::engine::{Audio, Point, Sound};
 
     use super::HEIGHT;
 
@@ -638,7 +644,7 @@ mod red_hat_boy_states {
     pub struct Idle;
 
     impl RedHatBoyState<Idle> {
-        pub fn new() -> Self {
+        pub fn new(audio: Audio, jump_sound: Sound) -> Self {
             RedHatBoyState {
                 ctx: RedHatBoyContext {
                     frame: 0,
@@ -647,6 +653,8 @@ mod red_hat_boy_states {
                         y: FLOOR,
                     },
                     velocity: Point { x: 0, y: 0 },
+                    audio,
+                    jump_sound,
                 },
                 _state: marker::PhantomData,
             }
@@ -739,7 +747,7 @@ mod red_hat_boy_states {
 
         pub fn jump(self) -> RedHatBoyState<Jumping> {
             RedHatBoyState {
-                ctx: self.ctx.set_vertical_velocity(JUMP_SPEED),
+                ctx: self.ctx.set_vertical_velocity(JUMP_SPEED).play_jump_sound(),
                 _state: marker::PhantomData,
             }
         }
@@ -841,7 +849,7 @@ mod red_hat_boy_states {
         }
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone)]
     pub struct RedHatBoyState<S> {
         pub ctx: RedHatBoyContext,
         // PhantomData<T>是一个零大小类型的标记结构体
@@ -859,15 +867,17 @@ mod red_hat_boy_states {
         }
 
         fn update_context(&mut self, frames: u8) {
-            self.ctx = self.ctx.update(frames)
+            self.ctx = self.ctx.clone().update(frames)
         }
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone)]
     pub struct RedHatBoyContext {
         pub frame: u8,
         pub position: Point,
         pub velocity: Point,
+        audio: Audio,
+        jump_sound: Sound,
     }
 
     impl RedHatBoyContext {
@@ -915,6 +925,13 @@ mod red_hat_boy_states {
         fn set_on(mut self, position: i16) -> Self {
             let position = position - PLAYER_HEIGHT;
             self.position.y = position;
+            self
+        }
+
+        fn play_jump_sound(self) -> Self {
+            if let Err(err) = self.audio.play_sound(&self.jump_sound) {
+                log!("Error playing jump sound {:#?}", err)
+            }
             self
         }
     }
