@@ -182,7 +182,7 @@ impl Renderer {
     pub fn draw_image(&self, image: &HtmlImageElement, frame: &Rect, destination: &Rect) {
         self.ctx
             .draw_image_with_html_image_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(
-                &image,
+                image,
                 frame.x().into(),
                 frame.y().into(),
                 frame.width.into(),
@@ -305,6 +305,7 @@ pub fn process_input(state: &mut KeyState, keyevent_receiver: &mut UnboundedRece
     }
 }
 
+#[derive(Default)]
 pub struct KeyState {
     pressed_keys: HashMap<String, web_sys::KeyboardEvent>,
 }
@@ -325,7 +326,7 @@ impl KeyState {
     }
 
     pub fn set_released(&mut self, code: &str) {
-        self.pressed_keys.remove(code.into());
+        self.pressed_keys.remove(code);
     }
 }
 

@@ -23,6 +23,7 @@ const HEIGHT: i16 = 600;
 const TIMELINE_MINIMUM: i16 = 1000;
 const OBSTACLE_BUFFER: i16 = 20;
 
+#[derive(Default)]
 pub struct WalkTheDog {
     machine: Option<WalkTheDogStateMachine>,
 }
@@ -138,7 +139,7 @@ impl WalkTheDogState<Walking> {
     fn end_game(self) -> WalkTheDogState<GameOver> {
         let receiver = browser::draw_ui("<button id='new_game'>New Game</button>")
             .and_then(|_unit| browser::find_html_element_by_id("new_game"))
-            .map(|element| engine::add_click_handler(element))
+            .map(engine::add_click_handler)
             .unwrap();
 
         WalkTheDogState {
@@ -581,13 +582,11 @@ impl RedHatBoy {
         let sprite = self.current_sprite().expect("Cell not found");
         Rect {
             position: Point {
-                x: (self.state_machine.context().position.x + sprite.sprite_source_size.x as i16)
-                    .into(),
-                y: (self.state_machine.context().position.y + sprite.sprite_source_size.y as i16)
-                    .into(),
+                x: (self.state_machine.context().position.x + sprite.sprite_source_size.x),
+                y: (self.state_machine.context().position.y + sprite.sprite_source_size.y),
             },
-            width: sprite.frame.w.into(),
-            height: sprite.frame.h.into(),
+            width: sprite.frame.w,
+            height: sprite.frame.h,
         }
     }
 
@@ -601,8 +600,8 @@ impl RedHatBoy {
                     x: sprite.frame.x,
                     y: sprite.frame.y,
                 },
-                width: sprite.frame.w.into(),
-                height: sprite.frame.h.into(),
+                width: sprite.frame.w,
+                height: sprite.frame.h,
             },
             &self.destination_box(),
         )
@@ -736,12 +735,12 @@ impl RedHatBoyStateMachine {
 
     fn context(&self) -> &RedHatBoyContext {
         match self {
-            RedHatBoyStateMachine::Idle(state) => &state.context(),
-            RedHatBoyStateMachine::Running(state) => &state.context(),
-            RedHatBoyStateMachine::Sliding(state) => &state.context(),
-            RedHatBoyStateMachine::Jumping(state) => &state.context(),
-            RedHatBoyStateMachine::Falling(state) => &state.context(),
-            RedHatBoyStateMachine::KnockedOut(state) => &state.context(),
+            RedHatBoyStateMachine::Idle(state) => state.context(),
+            RedHatBoyStateMachine::Running(state) => state.context(),
+            RedHatBoyStateMachine::Sliding(state) => state.context(),
+            RedHatBoyStateMachine::Jumping(state) => state.context(),
+            RedHatBoyStateMachine::Falling(state) => state.context(),
+            RedHatBoyStateMachine::KnockedOut(state) => state.context(),
         }
     }
 
@@ -817,12 +816,12 @@ impl From<FallingEndState> for RedHatBoyStateMachine {
     }
 }
 
-fn right_most(obstacle_list: &Vec<Box<dyn Obstacle>>) -> i16 {
+fn right_most(obstacle_list: &[Box<dyn Obstacle>]) -> i16 {
     obstacle_list
         .iter()
         .map(|obstacle| obstacle.right())
         // the max_by function to figure out the maximum value on the right
-        .max_by(|x, y| x.cmp(&y))
+        .max_by(|x, y| x.cmp(y))
         .unwrap_or(0)
 }
 
@@ -1010,7 +1009,7 @@ mod red_hat_boy_states {
         pub fn update(mut self) -> JumpingEndState {
             self.update_context(JUMPING_FRAMES);
             if self.ctx.position.y >= FLOOR {
-                JumpingEndState::Loading(self.land_on(HEIGHT.into()))
+                JumpingEndState::Loading(self.land_on(HEIGHT))
             } else {
                 JumpingEndState::Jumping(self)
             }
@@ -1025,7 +1024,7 @@ mod red_hat_boy_states {
 
         pub fn land_on(self, position: i16) -> RedHatBoyState<Running> {
             RedHatBoyState {
-                ctx: self.ctx.reset_frame().set_on(position as i16),
+                ctx: self.ctx.reset_frame().set_on(position),
                 _state: marker::PhantomData,
             }
         }
