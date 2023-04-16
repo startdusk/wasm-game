@@ -305,7 +305,7 @@ pub fn process_input(state: &mut KeyState, keyevent_receiver: &mut UnboundedRece
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct KeyState {
     pressed_keys: HashMap<String, web_sys::KeyboardEvent>,
 }
@@ -363,7 +363,7 @@ impl Audio {
 
 #[derive(Clone)]
 pub struct Sound {
-    buffer: AudioBuffer,
+    pub buffer: AudioBuffer,
 }
 
 pub fn add_click_handler(elem: HtmlElement) -> UnboundedReceiver<()> {
@@ -374,4 +374,26 @@ pub fn add_click_handler(elem: HtmlElement) -> UnboundedReceiver<()> {
     elem.set_onclick(Some(on_click.as_ref().unchecked_ref()));
     on_click.forget();
     click_receiver
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn two_rects_that_intersect_on_the_left() {
+        let rect1 = Rect {
+            position: Point { x: 10, y: 10 },
+            height: 100,
+            width: 100,
+        };
+
+        let rect2 = Rect {
+            position: Point { x: 0, y: 10 },
+            height: 100,
+            width: 100,
+        };
+
+        assert!(rect2.intersects(&rect1));
+    }
 }

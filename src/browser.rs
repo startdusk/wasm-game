@@ -165,3 +165,18 @@ pub fn find_html_element_by_id(id: &str) -> Result<HtmlElement> {
                 .map_err(|err| anyhow!("Could not cast into HtmlElement {:#?}", err))
         })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    async fn test_error_loading_json() {
+        let json = fetch_json("not_there.json").await;
+
+        assert!(json.is_err());
+    }
+}

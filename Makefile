@@ -12,4 +12,5 @@ fmt:
 
 
 .PHONY: fmt
+run:
 	@npm run start
