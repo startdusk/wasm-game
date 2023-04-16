@@ -8,7 +8,7 @@ use futures::channel::{
 };
 use serde::Deserialize;
 use wasm_bindgen::{prelude::Closure, JsCast, JsValue};
-use web_sys::{AudioBuffer, AudioContext, CanvasRenderingContext2d, HtmlImageElement};
+use web_sys::{AudioBuffer, AudioContext, CanvasRenderingContext2d, HtmlElement, HtmlImageElement};
 
 use crate::{
     browser::{self, LoopClosure},
@@ -111,7 +111,7 @@ pub trait Game {
     fn draw(&self, renderer: &Renderer);
 }
 
-const FRAME_SIZE: f32 = 1.0 / 60.0 * 10000.0; // 60 帧
+const FRAME_SIZE: f32 = 1.0 / 60.0 * 1000.0; // 60 帧
 
 pub struct GameLoop {
     last_frame: f64,
@@ -363,4 +363,14 @@ impl Audio {
 #[derive(Clone)]
 pub struct Sound {
     buffer: AudioBuffer,
+}
+
+pub fn add_click_handler(elem: HtmlElement) -> UnboundedReceiver<()> {
+    let (mut click_sender, click_receiver) = unbounded();
+    let on_click = browser::closure_wrap(Box::new(move || {
+        let _ = click_sender.start_send(());
+    }) as Box<dyn FnMut()>);
+    elem.set_onclick(Some(on_click.as_ref().unchecked_ref()));
+    on_click.forget();
+    click_receiver
 }
