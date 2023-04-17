@@ -11,6 +11,6 @@ fmt:
 	@cargo fmt -- --check && cargo clippy --all-targets --all-features --tests --benches -- -D warnings
 
 
-.PHONY: fmt
+.PHONY: run
 run:
 	@npm run start
